@@ -1,0 +1,151 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TikTrend Shop — Trending fits & cheap finds</title>
+  <style>
+    :root{--accent:#111827;--muted:#6b7280}
+    body{font-family:Inter,system-ui,Arial;background:#f7fafc;color:#0f172a;margin:0;padding:18px}
+    header{display:flex;gap:12px;align-items:center}
+    h1{font-size:1.2rem;margin:0}
+    p.lead{margin:6px 0 20px;color:var(--muted)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    input,select{padding:8px;border-radius:10px;border:1px solid #e5e7eb}
+    main{display:grid;grid-template-columns:1fr;gap:14px;max-width:980px;margin-top:12px}
+    .card{background:#fff;border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+    .trends{display:flex;gap:8px;flex-wrap:wrap}
+    .trend{background:#eef2ff;padding:6px 10px;border-radius:999px;font-weight:600}
+    .products{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+    .product img{width:100%;height:170px;object-fit:cover;border-radius:8px}
+    .foot{font-size:0.9rem;color:var(--muted)}
+    @media (max-width:520px){.product img{height:130px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div style="width:48px;height:48px;background:linear-gradient(135deg,#9f7aea,#60a5fa);border-radius:12px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700">T</div>
+    <div>
+      <h1>TikTrend Shop</h1>
+      <p class="lead">Auto-updating trending fits from TikTok — show polos, FILA, and cheap places to buy them.</p>
+    </div>
+  </header>  <div class="controls" style="margin-top:10px">
+    <input id="search" placeholder="Search brand or keyword (e.g. polo, FILA)" />
+    <select id="source">
+      <option value="tiktok">TikTok trends</option>
+      <option value="manual">Manual sample</option>
+    </select>
+    <button id="go">Show trends</button>
+  </div>  <main>
+    <section class="card">
+      <strong>Top live trends</strong>
+      <div id="trends" class="trends" style="margin-top:10px">Loading...</div>
+      <p class="foot" style="margin-top:8px">Tip: this demo shows how to plug a TikTok-trend API (TrendTok, TikTok Discovery, or your own scraper). Replace endpoint in the JS to make it live.</p>
+    </section><section class="card">
+  <strong>Cheap sourcing ideas (auto or filter by brand)</strong>
+  <div id="products" class="products" style="margin-top:12px">
+    <!-- product cards inserted by JS -->
+  </div>
+</section>
+
+<section class="card">
+  <strong>How to deploy from your phone (quick)</strong>
+  <ol>
+    <li>Open the file in a code editor app (e.g., 1Writer, Dcoder) or copy into Netlify Drop (drop.netlify.com) from mobile browser.</li>
+    <li>Or create a new repo on GitHub mobile app, push this single HTML file, then deploy with Vercel or Netlify (both have free tiers).</li>
+    <li>To add live TikTok trends later: use TrendTok API or a small serverless function that scrapes TikTok hashtags (respect TOS) and returns JSON to this page.</li>
+  </ol>
+  <p class="foot">This single-file site is intentionally simple so you can edit and deploy from your phone for free or nearly-free.</p>
+</section>
+
+  </main>  <script>
+    // ---------- CONFIG (replace these) ----------
+    // If you have a trends API, set TRENDS_API to it. Otherwise the demo uses a static sample array.
+    const TRENDS_API = '';
+    // Example product sources for cheap finds (you should replace affiliate links or API endpoints):
+    const PRODUCT_SOURCES = [
+      {title:'Ralph Lauren (outlet & deals)', src:'https://buyoutlet.com/collections/ralph-lauren', note:'Outlet / sale listings'},
+      {title:'Depop / Thrift resellers', src:'https://www.depop.com', note:'Secondhand / vintage bargains'},
+      {title:'True Classic / affordable polos', src:'https://trueclassic.com', note:'Budget polos with frequent discounts'},
+      {title:'AliExpress / wholesale', src:'https://www.aliexpress.com', note:'Cheapest new items (watch quality)'}
+    ];
+
+    const trendsEl = document.getElementById('trends');
+    const productsEl = document.getElementById('products');
+    const searchInput = document.getElementById('search');
+    const goBtn = document.getElementById('go');
+    const sourceSel = document.getElementById('source');
+
+    function showTrends(list){
+      trendsEl.innerHTML = '';
+      list.forEach(t=>{
+        const d = document.createElement('div'); d.className='trend'; d.textContent = t; trendsEl.appendChild(d);
+      });
+    }
+
+    function showProducts(filter){
+      productsEl.innerHTML = '';
+      PRODUCT_SOURCES.forEach(p=>{
+        if(filter && !p.title.toLowerCase().includes(filter.toLowerCase())) return;
+        const card = document.createElement('div'); card.className='product card';
+        card.innerHTML = `
+          <img src="https://via.placeholder.com/400x300?text=${encodeURIComponent(p.title)}" alt="${p.title}" />
+          <h4 style="margin:8px 0 4px">${p.title}</h4>
+          <div style="font-size:0.9rem;color:var(--muted);margin-bottom:8px">${p.note}</div>
+          <a href="${p.src}" target="_blank">Open source</a>
+        `;
+        productsEl.appendChild(card);
+      });
+    }
+
+    async function fetchTrendsFromApi(q){
+      if(!TRENDS_API) return null;
+      try{
+        const res = await fetch(TRENDS_API + '?q=' + encodeURIComponent(q));
+        if(!res.ok) throw new Error('api');
+        const json = await res.json();
+        // expecting array of hashtags/phrases at json.trends or json
+        return json.trends || json;
+      }catch(e){
+        console.warn('TRENDS API failed', e);
+        return null;
+      }
+    }
+
+    async function loadDefault(){
+      // Try API first, fallback to common sample trends + explain how to upgrade
+      const q = '';
+      const apiList = await fetchTrendsFromApi(q);
+      if(apiList && apiList.length) return showTrends(apiList.slice(0,12));
+
+      // static sample (replace with live API later)
+      showTrends(['#polofit','#filachallenge','#fitcheck','#thriftfinds','#tiktokfashion','#summerpolo']);
+      showProducts('');
+    }
+
+    goBtn.addEventListener('click', async ()=>{
+      const q = searchInput.value.trim();
+      if(sourceSel.value === 'manual' || !TRENDS_API){
+        // sample behavior: filter sample trends
+        const sample = ['#polofit','#filachallenge','#fitcheck','#thriftfinds','#tiktokfashion','#summerpolo'];
+        showTrends(sample.filter(t=>t.toLowerCase().includes(q.toLowerCase()) || !q));
+        showProducts(q);
+        return;
+      }
+      const apiList = await fetchTrendsFromApi(q);
+      if(apiList && apiList.length) showTrends(apiList);
+      else showTrends(['No live trends found. Make sure your TRENDS_API is set in the JS.']);
+      showProducts(q);
+    });
+
+    // initialize
+    loadDefault();
+  </script>  <!--
+    NOTES for you (short):
+    - To get live TikTok trends, use a service like TrendTok or TikTok's official Trend Discovery endpoints (requires auth).
+    - Cheapest deploy route from phone: Netlify Drop (drag or paste file), or GitHub mobile + Vercel.
+    - Replace PRODUCT_SOURCES with your affiliate links or API responses from marketplaces.
+    - Respect each platform's terms of service when scraping TikTok. Consider paid analytics tools (TrendTok, Sprout Social) if you want reliable, legal access.
+  --></body>
+</html>
